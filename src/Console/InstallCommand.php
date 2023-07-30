@@ -13,6 +13,8 @@ class InstallCommand extends Command
      * @var string
      */
     protected $signature = 'auth:install {--c|controllers : Install with controllers}
+                            {--vite : Install with Vite}
+                            {--test : Install with tests}
                             {--core : Install with controllers and routes}
                             {--e|empty : Install with controllers and empty blade}
                             {--b|backup : Backup the old files if it existed}';
@@ -61,8 +63,8 @@ class InstallCommand extends Command
                 (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/resources/views_empty/layouts', resource_path('views/layouts'));
             } else {
                 (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/resources/views/auth', resource_path('views/auth'));
-                (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/resources/views/layouts', resource_path('views/layouts'));
-                // Tailwind / Webpack...
+
+                // Tailwind / Webpack / Vite...
                 // NPM Packages...
                 $this->updateNodePackages(function ($packages) {
                     return [
@@ -74,12 +76,23 @@ class InstallCommand extends Command
                     ] + $packages;
                 });
                 copy(__DIR__.'/../../stubs/tailwind.config.js', base_path('tailwind.config.js'));
-                copy(__DIR__.'/../../stubs/webpack.mix.js', base_path('webpack.mix.js'));
                 copy(__DIR__.'/../../stubs/resources/css/app.css', resource_path('css/app.css'));
+
+                if (!$this->option('vite')) {
+                    copy(__DIR__.'/../../stubs/webpack.mix.js', base_path('webpack.mix.js'));
+                    (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/resources/views/layouts-webpack', resource_path('views/layouts'));
+                } else {
+                    copy(__DIR__.'/../../stubs/vite.config.js', base_path('vite.config.js'));
+                    copy(__DIR__.'/../../stubs/postcss.config.js', base_path('postcss.config.js'));
+                    (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/resources/views/layouts-vite', resource_path('views/layouts'));
+                }
             }
 
             // Tests...
-            (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/tests/Feature', base_path('tests/Feature'));
+            if ($this->option('test')) {
+                (new Filesystem())->ensureDirectoryExists(base_path('tests/Feature'));
+                (new Filesystem())->copyDirectory(__DIR__.'/../../stubs/tests/Feature', base_path('tests/Feature'));
+            }
 
             // Routes...
             $this->appendToFile('require __DIR__.\'/auth.php\';', base_path('routes/web.php'));
@@ -107,6 +120,7 @@ class InstallCommand extends Command
             app_path('Providers/RouteServiceProvider.php'),
             base_path('tailwind.config.js'),
             base_path('webpack.mix.js'),
+            base_path('vite.config.js'),
             resource_path('css/app.css'),
         ];
         foreach ($array as $item) {
